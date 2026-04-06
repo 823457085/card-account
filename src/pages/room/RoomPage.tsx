@@ -43,8 +43,6 @@ export default function RoomPage({ navigateTo }: Props) {
     );
   }
 
-  const sortedPlayers = [...room.players].sort((a, b) => b.currentScore - a.currentScore);
-
   const toggleWinner = (id: string) => {
     setWinners(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]);
   };
@@ -92,19 +90,6 @@ export default function RoomPage({ navigateTo }: Props) {
     const updated = useRoomStore.getState().rooms.find(r => r.roomId === room.roomId);
     if (updated) setCurrentRoom(updated);
     setEditingTeaFee(false);
-  };
-
-  const getRankClass = (rank: number) => {
-    if (rank === 1) return 'rank-1';
-    if (rank === 2) return 'rank-2';
-    if (rank === 3) return 'rank-3';
-    return 'rank-default';
-  };
-
-  const getLastChange = (playerId: string): number => {
-    if (room.rounds.length === 0) return 0;
-    const last = room.rounds[room.rounds.length - 1];
-    return last.scoreChanges[playerId] || 0;
   };
 
   const copyRoomCode = () => {
@@ -184,35 +169,31 @@ export default function RoomPage({ navigateTo }: Props) {
         )}
       </div>
 
-      {/* Players */}
-      <div className="card">
+      {/* Players horizontal avatar bar */}
+      <div className="card" style={{ marginBottom: '12px' }}>
         <div className="flex justify-between items-center mb-8">
-          <span style={{ fontWeight: 600 }}>👥 玩家列表（{room.players.length}人）</span>
+          <span style={{ fontWeight: 600 }}>👥 {room.players.length}人</span>
           <span style={{ fontSize: '12px', color: '#888' }}>第{room.rounds.length + 1}局</span>
         </div>
-
-        {sortedPlayers.map((player, idx) => {
-          const rank = idx + 1;
-          return (
-            <div key={player.playerId} className="player-item">
-              <div className={`rank-badge ${getRankClass(rank)}`}>
-                {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : rank}
+        <div style={{ display: 'flex', justifyContent: 'space-around', gap: '8px', flexWrap: 'wrap' }}>
+          {room.players.map(player => {
+            const delta = player.currentScore - room.initialScore;
+            return (
+              <div key={player.playerId} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '60px', maxWidth: '80px' }}>
+                <div className="avatar" style={{ background: player.avatarColor, width: '44px', height: '44px', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                  {player.name.slice(0, 1)}
+                </div>
+                <div style={{ fontSize: '11px', color: '#666', marginTop: '4px', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={player.name}>
+                  {player.name}
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: delta >= 0 ? '#52c41a' : '#ff4d4f', marginTop: '2px' }}>
+                  {delta >= 0 ? '+' : ''}{delta}
+                </div>
               </div>
-              <div className="avatar" style={{ background: player.avatarColor }}>
-                {player.name.slice(0, 1)}
-              </div>
-              <div className="flex-1">
-                <span style={{ fontWeight: 600 }}>{player.name}</span>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontWeight: 700, fontSize: '18px', color: player.currentScore >= room.initialScore ? '#52c41a' : '#ff4d4f' }}>
-                  {player.currentScore >= room.initialScore ? '+' : ''}{player.currentScore - room.initialScore}
-                </span>
-                <span style={{ fontSize: '12px', color: '#888', marginLeft: '4px' }}>/{player.currentScore}</span>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </div>
 
         {/* Add player */}
         {room.players.length < 8 && (
