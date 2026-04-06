@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRoomStore } from '../../store/useRoomStore';
+import { calculateSettlements } from '../../services/settlement';
 
 type Page = 'index' | 'room' | 'settlement' | 'history' | 'historyDetail';
 
@@ -23,6 +24,7 @@ export default function RoomPage({ navigateTo }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [editingTeaFee, setEditingTeaFee] = useState(false);
   const [teaFeeInput, setTeaFeeInput] = useState(0);
+  const [showPending, setShowPending] = useState(false);
 
   useEffect(() => {
     if (showQR && room) {
@@ -308,6 +310,62 @@ export default function RoomPage({ navigateTo }: Props) {
           )}
         </div>
       </div>
+
+      {/* 实时算账 */}
+      {room.rounds.length > 0 && (
+        <div className="card">
+          <div className="flex justify-between items-center clickable" onClick={() => setShowPending(v => !v)}>
+            <span style={{ fontWeight: 600 }}>📐 实时算账</span>
+            <span style={{ fontSize: '14px', color: '#1890ff' }}>
+              {showPending ? '收起' : '查看'}
+            </span>
+          </div>
+          {showPending && (() => {
+            const pending = calculateSettlements(room.players, room.initialScore);
+            if (pending.length === 0) {
+              return (
+                <div style={{ marginTop: '12px', color: '#888', fontSize: '14px' }}>
+                  暂无待结算转账（所有人分数一致）
+                </div>
+              );
+            }
+            return (
+              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '13px', color: '#888' }}>
+                  当前累计应付转账（结算前随时可见）
+                </div>
+                {pending.map((item, idx) => {
+                  const fromPlayer = room.players.find(p => p.playerId === item.from);
+                  const toPlayer = room.players.find(p => p.playerId === item.to);
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        background: '#f8f8f8',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontWeight: 600, color: '#ff4d4f' }}>{fromPlayer?.name ?? item.from}</span>
+                        <span style={{ color: '#888' }}>付</span>
+                        <span style={{ fontWeight: 600, color: '#52c41a' }}>{toPlayer?.name ?? item.to}</span>
+                      </div>
+                      <span style={{ fontWeight: 700, color: '#333', fontSize: '16px' }}>
+                        ¥{item.amount.toFixed(item.amount % 1 === 0 ? 0 : 2)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex gap-12 mt-16">

@@ -148,6 +148,13 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       if (p) p.currentScore += scoreChanges[lid];
     });
 
+    // Deduct tea fee from each active player per round
+    if (room.teaFee > 0) {
+      room.players.forEach(p => {
+        p.currentScore -= room.teaFee;
+      });
+    }
+
     const round: Round = {
       roundId: generateId(),
       roundNumber: room.rounds.length + 1,
@@ -171,6 +178,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       const p = room.players.find(p => p.playerId === pid);
       if (p) p.currentScore -= change;
     });
+    // Reverse tea fee deduction
+    if (room.teaFee > 0) {
+      room.players.forEach(p => {
+        p.currentScore += room.teaFee;
+      });
+    }
     set({ rooms: [...get().rooms], currentRoom: { ...room, players: room.players.map(p => ({ ...p })), rounds: [...room.rounds] } });
     storage.set('rooms', get().rooms);
     return lastRound;
@@ -194,6 +207,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         gameType: room.gameType,
         initialScore: room.initialScore,
         unitAmount: room.unitAmount,
+        teaFee: room.teaFee,
         players: room.players.map(p => ({ ...p })),
         createdAt: room.createdAt
       },

@@ -35,6 +35,8 @@ export interface Room {
   rounds: Round[];
   status: RoomStatus;
   createdAt: number;
+  /** 实时待结算转账（每次记牌后更新，结算后清空） */
+  pendingSettlements?: SettlementItem[];
 }
 
 export interface GameRecord {
