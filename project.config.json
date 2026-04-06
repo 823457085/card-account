@@ -1,0 +1,9 @@
+{
+  "projectname": "card-account",
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "h5": {
+    "publicPath": "/",
+    "staticDirectory": "static"
+  }
+}

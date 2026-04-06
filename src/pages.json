@@ -1,0 +1,40 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/IndexPage",
+      "style": {
+        "navigationBarTitleText": "打牌记账"
+      }
+    },
+    {
+      "path": "pages/room/RoomPage",
+      "style": {
+        "navigationBarTitleText": "房间"
+      }
+    },
+    {
+      "path": "pages/settlement/SettlementPage",
+      "style": {
+        "navigationBarTitleText": "结算"
+      }
+    },
+    {
+      "path": "pages/history/HistoryPage",
+      "style": {
+        "navigationBarTitleText": "历史战局"
+      }
+    },
+    {
+      "path": "pages/history/HistoryDetailPage",
+      "style": {
+        "navigationBarTitleText": "战局详情"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "打牌记账",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  }
+}
