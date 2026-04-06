@@ -30,6 +30,7 @@ export interface Room {
   gameType: GameType;
   initialScore: number;
   unitAmount: number;
+  teaFee: number;
   players: Player[];
   rounds: Round[];
   status: RoomStatus;

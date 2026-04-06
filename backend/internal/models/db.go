@@ -54,6 +54,7 @@ func runMigrations() error {
 			game_type TEXT NOT NULL,
 			initial_score INTEGER DEFAULT 1000,
 			unit_amount REAL DEFAULT 1.0,
+			tea_fee INTEGER DEFAULT 0,
 			creator_id TEXT NOT NULL,
 			status TEXT DEFAULT 'in_progress',
 			created_at INTEGER NOT NULL,
@@ -112,6 +113,15 @@ func runMigrations() error {
 			return fmt.Errorf("migration failed: %w\nsql: %s", err, m)
 		}
 	}
+
+	// Add tea_fee column to existing rooms table (migrate from pre-tea_fee schema)
+	{
+		var count int
+		DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('rooms') WHERE name='tea_fee'").Scan(&count)
+		if count == 0 {
+			DB.Exec("ALTER TABLE rooms ADD COLUMN tea_fee INTEGER DEFAULT 0")
+		}
+	}
 	return nil
 }
 
@@ -127,9 +137,9 @@ func DBGetRoom(roomID string) (*Room, error) {
 	var r Room
 	var createdAt, updatedAt int64
 	err := DB.QueryRow(
-		`SELECT room_id, name, game_type, initial_score, unit_amount, creator_id, status, created_at, updated_at
+		`SELECT room_id, name, game_type, initial_score, unit_amount, tea_fee, creator_id, status, created_at, updated_at
 		 FROM rooms WHERE room_id = ?`, roomID,
-	).Scan(&r.RoomID, &r.Name, &r.GameType, &r.InitialScore, &r.UnitAmount, &r.CreatorID, &r.Status, &createdAt, &updatedAt)
+	).Scan(&r.RoomID, &r.Name, &r.GameType, &r.InitialScore, &r.UnitAmount, &r.TeaFee, &r.CreatorID, &r.Status, &createdAt, &updatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -156,7 +166,7 @@ func DBGetRoom(roomID string) (*Room, error) {
 
 func DBListActiveRooms() ([]Room, error) {
 	rows, err := DB.Query(
-		`SELECT room_id, name, game_type, initial_score, unit_amount, creator_id, status, created_at, updated_at
+		`SELECT room_id, name, game_type, initial_score, unit_amount, tea_fee, creator_id, status, created_at, updated_at
 		 FROM rooms WHERE status = 'in_progress' ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -167,7 +177,7 @@ func DBListActiveRooms() ([]Room, error) {
 	for rows.Next() {
 		var r Room
 		var createdAt, updatedAt int64
-		if err := rows.Scan(&r.RoomID, &r.Name, &r.GameType, &r.InitialScore, &r.UnitAmount, &r.CreatorID, &r.Status, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&r.RoomID, &r.Name, &r.GameType, &r.InitialScore, &r.UnitAmount, &r.TeaFee, &r.CreatorID, &r.Status, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		r.CreatedAt = time.Unix(createdAt, 0)
@@ -179,9 +189,9 @@ func DBListActiveRooms() ([]Room, error) {
 
 func DBCreateRoom(room *Room) error {
 	_, err := DB.Exec(
-		`INSERT INTO rooms (room_id, name, game_type, initial_score, unit_amount, creator_id, status, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		room.RoomID, room.Name, room.GameType, room.InitialScore, room.UnitAmount,
+		`INSERT INTO rooms (room_id, name, game_type, initial_score, unit_amount, tea_fee, creator_id, status, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		room.RoomID, room.Name, room.GameType, room.InitialScore, room.UnitAmount, room.TeaFee,
 		room.CreatorID, room.Status, room.CreatedAt.Unix(), room.UpdatedAt.Unix(),
 	)
 	return err
@@ -190,6 +200,12 @@ func DBCreateRoom(room *Room) error {
 func DBUpdateRoomStatus(roomID string, status RoomStatus) error {
 	_, err := DB.Exec(`UPDATE rooms SET status = ?, updated_at = ? WHERE room_id = ?`,
 		status, time.Now().Unix(), roomID)
+	return err
+}
+
+func DBUpdateRoomTeaFee(roomID string, teaFee int) error {
+	_, err := DB.Exec(`UPDATE rooms SET tea_fee = ?, updated_at = ? WHERE room_id = ?`,
+		teaFee, time.Now().Unix(), roomID)
 	return err
 }
 

@@ -12,7 +12,7 @@ interface RoomState {
   lastSettlement: { finalScores: { playerId: string; score: number; rank: number }[]; settlements: SettlementItem[]; record: GameRecord } | null;
 
   loadRooms: () => void;
-  createRoom: (params: { name: string; gameType: Room['gameType']; initialScore?: number; unitAmount?: number; playerName: string }) => Room;
+  createRoom: (params: { name: string; gameType: Room['gameType']; initialScore?: number; unitAmount?: number; teaFee?: number; playerName: string }) => Room;
   joinRoom: (roomId: string, playerName: string) => Room | null;
   leaveRoom: (roomId: string, playerId: string) => void;
   getRoom: (roomId: string) => Room | null;
@@ -36,7 +36,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     set({ rooms });
   },
 
-  createRoom: ({ name, gameType, initialScore = 1000, unitAmount = 1, playerName }) => {
+  createRoom: ({ name, gameType, initialScore = 1000, unitAmount = 1, teaFee = 0, playerName }) => {
     const roomId = generateRoomId();
     const creator: Player = {
       playerId: generateId(),
@@ -50,6 +50,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       gameType,
       initialScore,
       unitAmount,
+      teaFee,
       players: [creator],
       rounds: [],
       status: 'active',
@@ -215,6 +216,22 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   setCurrentRoom: (room) => set({ currentRoom: room }),
+
+  updateTeaFee: (roomId: string, teaFee: number) => {
+    const rooms = get().rooms.map(r => {
+      if (r.roomId === roomId) {
+        return { ...r, teaFee };
+      }
+      return r;
+    });
+    const currentRoom = get().currentRoom;
+    if (currentRoom && currentRoom.roomId === roomId) {
+      set({ rooms, currentRoom: { ...currentRoom, teaFee } });
+    } else {
+      set({ rooms });
+    }
+    storage.set('rooms', rooms);
+  },
 
   loadCurrentRoom: () => {
     const { currentRoom, rooms } = get();

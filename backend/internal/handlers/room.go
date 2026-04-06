@@ -5,11 +5,13 @@ import (
 	"card-account/internal/services"
 	"card-account/internal/ws"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/skip2/go-qrcode"
 )
 
 type RoomHandler struct {
@@ -53,6 +55,11 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		creatorColor = services.DefaultAvatarColor(req.CreatorName)
 	}
 
+	teaFee := req.TeaFee
+	if teaFee < 0 {
+		teaFee = 0
+	}
+
 	now := time.Now()
 	room := &models.Room{
 		RoomID:       roomCode,
@@ -60,6 +67,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		GameType:     req.GameType,
 		InitialScore: initialScore,
 		UnitAmount:   unitAmount,
+		TeaFee:       teaFee,
 		CreatorID:    req.CreatorID,
 		Status:       models.RoomStatusInProgress,
 		Players:     []models.Player{},
@@ -107,6 +115,32 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, room)
+}
+
+// GetRoomQRCode generates a QR code PNG for joining a room
+func (h *RoomHandler) GetRoomQRCode(c *gin.Context) {
+	roomID := c.Param("roomId")
+
+	room, err := models.DBGetRoom(roomID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if room == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "room not found"})
+		return
+	}
+
+	joinURL := fmt.Sprintf("http://localhost:3000/join?code=%s", roomID)
+	png, err := qrcode.Encode(joinURL, qrcode.Medium, 256)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate QR code"})
+		return
+	}
+
+	c.Header("Content-Type", "image/png")
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"room-%s-qr.png\"", roomID))
+	c.Data(http.StatusOK, "image/png", png)
 }
 
 // ListRooms returns all active rooms
@@ -234,6 +268,48 @@ func (h *RoomHandler) DeleteRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "room deleted"})
 }
 
+// UpdateTeaFee updates the tea fee for a room (creator only)
+func (h *RoomHandler) UpdateTeaFee(c *gin.Context) {
+	roomID := c.Param("roomId")
+
+	var body struct {
+		TeaFee    int    `json:"teaFee"`
+		CreatorID string `json:"creatorId" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	room, err := models.DBGetRoom(roomID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if room == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "room not found"})
+		return
+	}
+	if room.CreatorID != body.CreatorID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only creator can change tea fee"})
+		return
+	}
+
+	if body.TeaFee < 0 {
+		body.TeaFee = 0
+	}
+
+	if err := models.DBUpdateRoomTeaFee(roomID, body.TeaFee); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	room.TeaFee = body.TeaFee
+	h.hub.BroadcastToRoom(roomID, "room:update", room)
+
+	c.JSON(http.StatusOK, gin.H{"teaFee": body.TeaFee})
+}
+
 // SettleRoom settles a room and generates game record
 func (h *RoomHandler) SettleRoom(c *gin.Context) {
 	roomID := c.Param("roomId")
@@ -272,6 +348,7 @@ func (h *RoomHandler) SettleRoom(c *gin.Context) {
 			GameType:     room.GameType,
 			InitialScore: room.InitialScore,
 			UnitAmount:   room.UnitAmount,
+			TeaFee:       room.TeaFee,
 			CreatorID:    room.CreatorID,
 			CreatedAt:    room.CreatedAt,
 		},
@@ -361,6 +438,13 @@ func (h *RoomHandler) AddRound(c *gin.Context) {
 			if room.Players[i].PlayerID == item.From {
 				room.Players[i].CurrentScore -= int(item.Amount)
 			}
+		}
+	}
+
+	// Deduct tea fee from each active player per round
+	if room.TeaFee > 0 {
+		for i := range room.Players {
+			room.Players[i].CurrentScore -= room.TeaFee
 		}
 	}
 

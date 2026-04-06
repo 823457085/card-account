@@ -64,9 +64,11 @@ func main() {
 		api.POST("/rooms", roomHandler.CreateRoom)
 		api.GET("/rooms", roomHandler.ListRooms)
 		api.GET("/rooms/:roomId", roomHandler.GetRoom)
+		api.GET("/rooms/:roomId/qrcode", roomHandler.GetRoomQRCode)
 		api.POST("/rooms/:roomId/join", roomHandler.JoinRoom)
 		api.POST("/rooms/:roomId/leave", roomHandler.LeaveRoom)
 		api.DELETE("/rooms/:roomId", roomHandler.DeleteRoom)
+		api.PUT("/rooms/:roomId/tea-fee", roomHandler.UpdateTeaFee)
 		api.POST("/rooms/:roomId/settle", roomHandler.SettleRoom)
 
 		// Rounds

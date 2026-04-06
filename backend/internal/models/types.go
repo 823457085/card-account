@@ -36,6 +36,7 @@ type Room struct {
 	GameType      GameType   `json:"gameType"`
 	InitialScore  int        `json:"initialScore"`
 	UnitAmount    float64    `json:"unitAmount"`
+	TeaFee        int        `json:"teaFee"`
 	CreatorID     string     `json:"creatorId"`
 	Status        RoomStatus `json:"status"`
 	Players       []Player   `json:"players"`
@@ -90,6 +91,7 @@ type RoomSnapshot struct {
 	GameType     GameType  `json:"gameType"`
 	InitialScore int       `json:"initialScore"`
 	UnitAmount   float64   `json:"unitAmount"`
+	TeaFee       int       `json:"teaFee"`
 	CreatorID    string    `json:"creatorId"`
 	CreatedAt    time.Time `json:"createdAt"`
 }
@@ -118,6 +120,7 @@ type CreateRoomRequest struct {
 	GameType     GameType `json:"gameType" binding:"required"`
 	InitialScore int      `json:"initialScore"`
 	UnitAmount   float64  `json:"unitAmount"`
+	TeaFee       int      `json:"teaFee"`
 	CreatorID    string   `json:"creatorId" binding:"required"`
 	CreatorName  string   `json:"creatorName" binding:"required"`
 	CreatorColor string   `json:"creatorColor"`

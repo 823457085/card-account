@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRoomStore } from '../../store/useRoomStore';
 
 type Page = 'index' | 'room' | 'settlement' | 'history' | 'historyDetail';
@@ -13,14 +13,25 @@ export default function IndexPage({ navigateTo }: Props) {
   const [gameType, setGameType] = useState<'mahjong' | 'poker' | 'guandan' | 'custom'>('mahjong');
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [teaFee, setTeaFee] = useState(0);
   const [error, setError] = useState('');
 
   const { createRoom, joinRoom } = useRoomStore();
 
+  // Auto-detect ?code= URL param and switch to join mode (from QR scan)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code && code.length === 6) {
+      setJoinCode(code);
+      setMode('join');
+    }
+  }, []);
+
   const handleCreate = () => {
     if (!playerName.trim()) { setError('请输入你的昵称'); return; }
     setError('');
-    const room = createRoom({ name: roomName, gameType, playerName: playerName.trim() });
+    const room = createRoom({ name: roomName, gameType, playerName: playerName.trim(), teaFee });
     if (room) navigateTo('room');
   };
 
@@ -86,6 +97,16 @@ export default function IndexPage({ navigateTo }: Props) {
                 </div>
               ))}
             </div>
+
+            <div className="mt-16 mb-8"><span style={{ fontWeight: 600 }}>茶水费/局</span></div>
+            <input
+              className="input"
+              type="number"
+              value={teaFee}
+              onChange={e => setTeaFee(Math.max(0, parseInt(e.target.value) || 0))}
+              placeholder="每人每局扣的分数，默认0"
+              min="0"
+            />
 
             <div className="mt-16 mb-8"><span style={{ fontWeight: 600 }}>你的昵称</span></div>
             <input className="input" value={playerName} onChange={e => setPlayerName(e.target.value)} placeholder="4-8个字符" maxLength={8} />

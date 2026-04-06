@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRoomStore } from '../../store/useRoomStore';
 
 type Page = 'index' | 'room' | 'settlement' | 'history' | 'historyDetail';
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function RoomPage({ navigateTo }: Props) {
-  const { currentRoom, recordRound, undoRound, settleRoom, addPlayer, removePlayer, setCurrentRoom } = useRoomStore();
+  const { currentRoom, recordRound, undoRound, settleRoom, addPlayer, removePlayer, setCurrentRoom, updateTeaFee } = useRoomStore();
   const room = currentRoom;
 
   const [winners, setWinners] = useState<string[]>([]);
@@ -19,6 +19,19 @@ export default function RoomPage({ navigateTo }: Props) {
   const [customAmount, setCustomAmount] = useState('');
   const [showCustom, setShowCustom] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState('');
+  const [showQR, setShowQR] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [editingTeaFee, setEditingTeaFee] = useState(false);
+  const [teaFeeInput, setTeaFeeInput] = useState(0);
+
+  useEffect(() => {
+    if (showQR && room) {
+      import('qrcode').then(({ default: QRCode }) => {
+        const url = `${window.location.origin}/join?code=${room.roomId}`;
+        QRCode.toDataURL(url, { width: 200, margin: 2 }).then(setQrDataUrl);
+      });
+    }
+  }, [showQR, room]);
 
   if (!room) {
     return (
@@ -71,6 +84,14 @@ export default function RoomPage({ navigateTo }: Props) {
     if (updated) setCurrentRoom(updated);
   };
 
+  const handleSaveTeaFee = () => {
+    const fee = Math.max(0, teaFeeInput);
+    updateTeaFee(room.roomId, fee);
+    const updated = useRoomStore.getState().rooms.find(r => r.roomId === room.roomId);
+    if (updated) setCurrentRoom(updated);
+    setEditingTeaFee(false);
+  };
+
   const getRankClass = (rank: number) => {
     if (rank === 1) return 'rank-1';
     if (rank === 2) return 'rank-2';
@@ -99,6 +120,68 @@ export default function RoomPage({ navigateTo }: Props) {
         </div>
       </div>
 
+      {/* QR Code Section */}
+      <div className="card" style={{ marginBottom: '12px', padding: '16px' }}>
+        <div className="flex justify-between items-center">
+          <span style={{ fontWeight: 600 }}>📱 邀请加入</span>
+          <span
+            className="clickable"
+            style={{ fontSize: '14px', color: '#1890ff' }}
+            onClick={() => setShowQR(!showQR)}
+          >
+            {showQR ? '收起二维码' : '显示二维码'}
+          </span>
+        </div>
+        {showQR && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '12px', gap: '8px' }}>
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="房间二维码"
+                style={{ width: '200px', height: '200px', border: '1px solid #eee', borderRadius: '8px' }}
+              />
+            ) : (
+              <div style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', borderRadius: '8px' }}>
+                生成中...
+              </div>
+            )}
+            <div style={{ fontSize: '13px', color: '#888', textAlign: 'center' }}>
+              扫码加入 · 房间码 <strong>{room.roomId}</strong>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tea Fee Section */}
+      <div className="card" style={{ marginBottom: '12px', padding: '12px 16px' }}>
+        <div className="flex justify-between items-center">
+          <span style={{ fontSize: '14px' }}>🍵 茶水费：<strong>{room.teaFee || 0}</strong> 分/局</span>
+          <span
+            className="clickable"
+            style={{ fontSize: '14px', color: '#1890ff' }}
+            onClick={() => {
+              setTeaFeeInput(room.teaFee || 0);
+              setEditingTeaFee(!editingTeaFee);
+            }}
+          >
+            {editingTeaFee ? '取消' : '修改'}
+          </span>
+        </div>
+        {editingTeaFee && (
+          <div className="flex items-center gap-8" style={{ marginTop: '8px' }}>
+            <input
+              className="input"
+              type="number"
+              value={teaFeeInput}
+              onChange={e => setTeaFeeInput(Math.max(0, parseInt(e.target.value) || 0))}
+              min="0"
+              style={{ flex: 1 }}
+            />
+            <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '14px' }} onClick={handleSaveTeaFee}>保存</button>
+          </div>
+        )}
+      </div>
+
       {/* Players */}
       <div className="card">
         <div className="flex justify-between items-center mb-8">
@@ -108,7 +191,6 @@ export default function RoomPage({ navigateTo }: Props) {
 
         {sortedPlayers.map((player, idx) => {
           const rank = idx + 1;
-          const lastChange = getLastChange(player.playerId);
           return (
             <div key={player.playerId} className="player-item">
               <div className={`rank-badge ${getRankClass(rank)}`}>
