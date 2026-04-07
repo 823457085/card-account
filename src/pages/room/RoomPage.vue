@@ -228,9 +228,10 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { currentRoom, recordRound, undoRound, settleRoom, addPlayer, setCurrentRoom, updateTeaFee } = useRoomStore();
+const store = useRoomStore();
+const room = computed(() => store.currentRoom);
 
-const room = computed(() => currentRoom);
+const { recordRound, undoRound, settleRoom, addPlayer, updateTeaFee } = store;
 
 const winners = ref<string[]>([]);
 const losers = ref<string[]>([]);
@@ -286,8 +287,6 @@ const handleRecord = () => {
   const finalAmount = showCustom.value && customAmount.value ? parseInt(customAmount.value) : amount.value;
   if (!finalAmount || finalAmount <= 0) return;
   recordRound({ roomId: room.value!.roomId, winners: winners.value, losers: losers.value, amount: finalAmount });
-  const updated = useRoomStore.getState().rooms.find(r => r.roomId === room.value!.roomId);
-  if (updated) setCurrentRoom(updated);
   winners.value = [];
   losers.value = [];
   customAmount.value = '';
@@ -298,8 +297,6 @@ const handleRecord = () => {
 const handleUndo = () => {
   if (!room.value) return;
   undoRound(room.value.roomId);
-  const updated = useRoomStore.getState().rooms.find(r => r.roomId === room.value!.roomId);
-  if (updated) setCurrentRoom(updated);
 };
 
 const handleSettle = () => {
@@ -311,8 +308,6 @@ const handleSettle = () => {
 const handleAddPlayer = () => {
   if (!newPlayerName.value.trim() || !room.value) return;
   addPlayer(room.value.roomId, newPlayerName.value.trim());
-  const updated = useRoomStore.getState().rooms.find(r => r.roomId === room.value!.roomId);
-  if (updated) setCurrentRoom(updated);
   newPlayerName.value = '';
 };
 
@@ -325,8 +320,6 @@ const toggleTeaFeeEdit = () => {
 const handleSaveTeaFee = () => {
   if (!room.value) return;
   updateTeaFee(room.value.roomId, Math.max(0, teaFeeInput.value));
-  const updated = useRoomStore.getState().rooms.find(r => r.roomId === room.value!.roomId);
-  if (updated) setCurrentRoom(updated);
   editingTeaFee.value = false;
 };
 

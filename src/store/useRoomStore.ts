@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 import { Room, Player, Round, GameRecord, SettlementItem } from '../types';
 import { storage } from '../services/storage';
 import { generateId } from '../utils/id';
@@ -6,37 +7,28 @@ import { generateRoomId } from '../services/roomCode';
 import { calculateSettlements } from '../services/settlement';
 import { getAvatarColor } from '../utils/format';
 
-interface RoomState {
-  rooms: Room[];
-  currentRoom: Room | null;
-  lastSettlement: { finalScores: { playerId: string; score: number; rank: number }[]; settlements: SettlementItem[]; record: GameRecord } | null;
+export const useRoomStore = defineStore('room', () => {
+  const rooms = ref<Room[]>([]);
+  const currentRoom = ref<Room | null>(null);
+  const lastSettlement = ref<{
+    finalScores: { playerId: string; score: number; rank: number }[];
+    settlements: SettlementItem[];
+    record: GameRecord;
+  } | null>(null);
 
-  loadRooms: () => void;
-  createRoom: (params: { name: string; gameType: Room['gameType']; initialScore?: number; unitAmount?: number; teaFee?: number; playerName: string }) => Room;
-  joinRoom: (roomId: string, playerName: string) => Room | null;
-  leaveRoom: (roomId: string, playerId: string) => void;
-  getRoom: (roomId: string) => Room | null;
-  addPlayer: (roomId: string, playerName: string) => Player | null;
-  removePlayer: (roomId: string, playerId: string) => void;
+  function loadRooms() {
+    rooms.value = storage.get<Room[]>('rooms') || [];
+  }
 
-  recordRound: (params: { roomId: string; winners: string[]; losers: string[]; amount: number }) => Round | null;
-  undoRound: (roomId: string) => Round | null;
-  settleRoom: (roomId: string) => { finalScores: { playerId: string; score: number; rank: number }[]; settlements: SettlementItem[]; record: GameRecord } | null;
-  setCurrentRoom: (room: Room | null) => void;
-  loadCurrentRoom: () => void;
-}
-
-export const useRoomStore = create<RoomState>((set, get) => ({
-  rooms: [],
-  currentRoom: null,
-  lastSettlement: null,
-
-  loadRooms: () => {
-    const rooms = storage.get<Room[]>('rooms') || [];
-    set({ rooms });
-  },
-
-  createRoom: ({ name, gameType, initialScore = 1000, unitAmount = 1, teaFee = 0, playerName }) => {
+  function createRoom(params: {
+    name: string;
+    gameType: Room['gameType'];
+    initialScore?: number;
+    unitAmount?: number;
+    teaFee?: number;
+    playerName: string;
+  }): Room {
+    const { name, gameType, initialScore = 1000, unitAmount = 1, teaFee = 0, playerName } = params;
     const roomId = generateRoomId();
     const creator: Player = {
       playerId: generateId(),
@@ -56,14 +48,14 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       status: 'active',
       createdAt: Date.now()
     };
-    const rooms = [...get().rooms, room];
-    set({ rooms, currentRoom: room });
-    storage.set('rooms', rooms);
+    rooms.value.push(room);
+    currentRoom.value = room;
+    storage.set('rooms', rooms.value);
     return room;
-  },
+  }
 
-  joinRoom: (roomId, playerName) => {
-    const room = get().rooms.find(r => r.roomId === roomId && r.status === 'active');
+  function joinRoom(roomId: string, playerName: string): Room | null {
+    const room = rooms.value.find(r => r.roomId === roomId && r.status === 'active');
     if (!room) return null;
     if (room.players.length >= 8) return null;
     const player: Player = {
@@ -72,30 +64,30 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       avatarColor: getAvatarColor(room.players.length),
       currentScore: room.initialScore
     };
-    const newRoom = { ...room, players: [...room.players, player] };
-    const rooms = get().rooms.map(r => r.roomId === roomId ? newRoom : r);
-    set({ rooms, currentRoom: newRoom });
-    storage.set('rooms', rooms);
-    return newRoom;
-  },
+    room.players.push(player);
+    currentRoom.value = room;
+    storage.set('rooms', rooms.value);
+    return room;
+  }
 
-  leaveRoom: (roomId, playerId) => {
-    const rooms = get().rooms.map(r => {
-      if (r.roomId === roomId) {
-        r.players = r.players.filter(p => p.playerId !== playerId);
-      }
-      return r;
-    }).filter(r => r.players.length > 0);
-    set({ rooms, currentRoom: null });
-    storage.set('rooms', rooms);
-  },
+  function leaveRoom(roomId: string, playerId: string) {
+    const room = rooms.value.find(r => r.roomId === roomId);
+    if (room) {
+      room.players = room.players.filter(p => p.playerId !== playerId);
+    }
+    rooms.value = rooms.value.filter(r => r.players.length > 0);
+    if (currentRoom.value?.roomId === roomId) {
+      currentRoom.value = null;
+    }
+    storage.set('rooms', rooms.value);
+  }
 
-  getRoom: (roomId) => {
-    return get().rooms.find(r => r.roomId === roomId) || null;
-  },
+  function getRoom(roomId: string): Room | null {
+    return rooms.value.find(r => r.roomId === roomId) || null;
+  }
 
-  addPlayer: (roomId, playerName) => {
-    const room = get().rooms.find(r => r.roomId === roomId);
+  function addPlayer(roomId: string, playerName: string): Player | null {
+    const room = rooms.value.find(r => r.roomId === roomId);
     if (!room || room.players.length >= 8) return null;
     const player: Player = {
       playerId: generateId(),
@@ -103,31 +95,35 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       avatarColor: getAvatarColor(room.players.length),
       currentScore: room.initialScore
     };
-    const newRoom = { ...room, players: [...room.players, player] };
-    const rooms = get().rooms.map(r => r.roomId === roomId ? newRoom : r);
-    set({ rooms, currentRoom: newRoom });
-    storage.set('rooms', rooms);
+    room.players.push(player);
+    currentRoom.value = room;
+    storage.set('rooms', rooms.value);
     return player;
-  },
+  }
 
-  removePlayer: (roomId, playerId) => {
-    const rooms = get().rooms.map(r => {
-      if (r.roomId === roomId) {
-        r.players = r.players.filter(p => p.playerId !== playerId);
-      }
-      return r;
-    }).filter(r => r.players.length > 0);
-    set({ rooms, currentRoom: get().currentRoom?.roomId === roomId ? null : get().currentRoom });
-    storage.set('rooms', rooms);
-  },
+  function removePlayer(roomId: string, playerId: string) {
+    const room = rooms.value.find(r => r.roomId === roomId);
+    if (room) {
+      room.players = room.players.filter(p => p.playerId !== playerId);
+    }
+    rooms.value = rooms.value.filter(r => r.players.length > 0);
+    if (currentRoom.value?.roomId === roomId) {
+      currentRoom.value = null;
+    }
+    storage.set('rooms', rooms.value);
+  }
 
-  recordRound: ({ roomId, winners, losers, amount }) => {
-    const room = get().rooms.find(r => r.roomId === roomId);
+  function recordRound(params: {
+    roomId: string;
+    winners: string[];
+    losers: string[];
+    amount: number;
+  }): Round | null {
+    const { roomId, winners, losers, amount } = params;
+    const room = rooms.value.find(r => r.roomId === roomId);
     if (!room || winners.length === 0 || losers.length === 0 || amount <= 0) return null;
 
     const scoreChanges: Record<string, number> = {};
-    // Use integer (cents) to avoid float precision issues
-    // e.g. 33.33 * 3 = 99.99 instead of 100
     const amountCents = Math.round(amount * 100);
     const loserShareCents = Math.floor(amountCents / losers.length);
     const winnerShareCents = Math.floor(amountCents / winners.length);
@@ -148,7 +144,6 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       if (p) p.currentScore += scoreChanges[lid];
     });
 
-    // Deduct tea fee from each active player per round
     if (room.teaFee > 0) {
       room.players.forEach(p => {
         p.currentScore -= room.teaFee;
@@ -165,32 +160,31 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       createdAt: Date.now()
     };
     room.rounds.push(round);
-    set({ rooms: [...get().rooms], currentRoom: { ...room, players: room.players.map(p => ({ ...p })), rounds: [...room.rounds] } });
-    storage.set('rooms', get().rooms);
+    currentRoom.value = { ...room, players: room.players.map(p => ({ ...p })), rounds: [...room.rounds] };
+    storage.set('rooms', rooms.value);
     return round;
-  },
+  }
 
-  undoRound: (roomId) => {
-    const room = get().rooms.find(r => r.roomId === roomId);
+  function undoRound(roomId: string): Round | null {
+    const room = rooms.value.find(r => r.roomId === roomId);
     if (!room || room.rounds.length === 0) return null;
     const lastRound = room.rounds.pop()!;
     Object.entries(lastRound.scoreChanges).forEach(([pid, change]) => {
       const p = room.players.find(p => p.playerId === pid);
       if (p) p.currentScore -= change;
     });
-    // Reverse tea fee deduction
     if (room.teaFee > 0) {
       room.players.forEach(p => {
         p.currentScore += room.teaFee;
       });
     }
-    set({ rooms: [...get().rooms], currentRoom: { ...room, players: room.players.map(p => ({ ...p })), rounds: [...room.rounds] } });
-    storage.set('rooms', get().rooms);
+    currentRoom.value = { ...room, players: room.players.map(p => ({ ...p })), rounds: [...room.rounds] };
+    storage.set('rooms', rooms.value);
     return lastRound;
-  },
+  }
 
-  settleRoom: (roomId) => {
-    const room = get().rooms.find(r => r.roomId === roomId);
+  function settleRoom(roomId: string) {
+    const room = rooms.value.find(r => r.roomId === roomId);
     if (!room) return null;
 
     const settlements = calculateSettlements(room.players, room.initialScore);
@@ -222,36 +216,50 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     history.unshift(record);
     storage.set('history', history);
 
-    const rooms = get().rooms.filter(r => r.roomId !== roomId);
-    set({ rooms, currentRoom: null, lastSettlement: { finalScores, settlements, record } });
-    storage.set('rooms', rooms);
+    rooms.value = rooms.value.filter(r => r.roomId !== roomId);
+    currentRoom.value = null;
+    lastSettlement.value = { finalScores, settlements, record };
+    storage.set('rooms', rooms.value);
 
     return { finalScores, settlements, record };
-  },
+  }
 
-  setCurrentRoom: (room) => set({ currentRoom: room }),
+  function setCurrentRoom(room: Room | null) {
+    currentRoom.value = room;
+  }
 
-  updateTeaFee: (roomId: string, teaFee: number) => {
-    const rooms = get().rooms.map(r => {
-      if (r.roomId === roomId) {
-        return { ...r, teaFee };
-      }
-      return r;
-    });
-    const currentRoom = get().currentRoom;
-    if (currentRoom && currentRoom.roomId === roomId) {
-      set({ rooms, currentRoom: { ...currentRoom, teaFee } });
-    } else {
-      set({ rooms });
+  function updateTeaFee(roomId: string, teaFee: number) {
+    const room = rooms.value.find(r => r.roomId === roomId);
+    if (room) room.teaFee = teaFee;
+    if (currentRoom.value && currentRoom.value.roomId === roomId) {
+      currentRoom.value = { ...currentRoom.value, teaFee };
     }
-    storage.set('rooms', rooms);
-  },
+    storage.set('rooms', rooms.value);
+  }
 
-  loadCurrentRoom: () => {
-    const { currentRoom, rooms } = get();
-    if (currentRoom) {
-      const updated = rooms.find(r => r.roomId === currentRoom.roomId);
-      if (updated) set({ currentRoom: updated });
+  function loadCurrentRoom() {
+    if (currentRoom.value) {
+      const updated = rooms.value.find(r => r.roomId === currentRoom.value!.roomId);
+      if (updated) currentRoom.value = updated;
     }
   }
-}));
+
+  return {
+    rooms,
+    currentRoom,
+    lastSettlement,
+    loadRooms,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    getRoom,
+    addPlayer,
+    removePlayer,
+    recordRound,
+    undoRound,
+    settleRoom,
+    setCurrentRoom,
+    updateTeaFee,
+    loadCurrentRoom
+  };
+});
