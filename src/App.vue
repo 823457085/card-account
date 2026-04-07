@@ -4,7 +4,7 @@
     <RoomPage v-else-if="currentPage === 'room'" :navigate-to="navigateTo" />
     <SettlementPage v-else-if="currentPage === 'settlement'" :navigate-to="navigateTo" />
     <HistoryPage v-else-if="currentPage === 'history'" :navigate-to="navigateTo" />
-    <HistoryDetailPage v-else-if="currentPage === 'historyDetail'" :navigate-to="navigateTo" />
+    <HistoryDetailPage v-else-if="currentPage === 'historyDetail'" :navigate-to="navigateTo" :record-id="historyDetailId || undefined" />
   </view>
 </template>
 
@@ -30,7 +30,7 @@ const navigateTo = (page: Page, recordId?: string) => {
 </script>
 
 <style>
-@import './styles/global.css';
+@import './styles/global.scss';
 
 .app-container {
   min-height: 100vh;
