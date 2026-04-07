@@ -25,7 +25,7 @@
       }
     },
     {
-      "path": "pages/history/HistoryDetailPage",
+      "path": "pages/history-detail/HistoryDetailPage",
       "style": {
         "navigationBarTitleText": "战局详情"
       }
