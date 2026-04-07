@@ -144,7 +144,7 @@ const handleCreate = () => {
     playerName: playerName.value.trim(),
     teaFee: teaFee.value
   });
-  if (room) props.navigateTo('room');
+  if (room) navigateTo('room');
 };
 
 const handleJoin = () => {
@@ -152,7 +152,7 @@ const handleJoin = () => {
   if (!joinCode.value.trim()) { error.value = '请输入房间码'; return; }
   error.value = '';
   const room = joinRoom(joinCode.value.trim(), playerName.value.trim());
-  if (room) props.navigateTo('room');
+  if (room) navigateTo('room');
   else error.value = '房间不存在或已失效';
 };
 </script>

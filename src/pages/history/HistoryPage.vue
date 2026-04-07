@@ -125,6 +125,6 @@ const handleDelete = (recordId: string) => {
 };
 
 const handleViewDetail = (record: GameRecord) => {
-  props.navigateTo('historyDetail', record.recordId);
+  navigateTo('historyDetail', record.recordId);
 };
 </script>

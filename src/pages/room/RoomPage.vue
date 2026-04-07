@@ -302,7 +302,7 @@ const handleUndo = () => {
 const handleSettle = () => {
   if (!room.value) return;
   const result = settleRoom(room.value.roomId);
-  if (result) props.navigateTo('settlement');
+  if (result) navigateTo('settlement');
 };
 
 const handleAddPlayer = () => {
